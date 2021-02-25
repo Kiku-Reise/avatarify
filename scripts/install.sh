@@ -1,19 +1,31 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-ENV_NAME=avatarify
+# check prerequisites
+command -v conda >/dev/null 2>&1 || { echo >&2 "conda not found. Please refer to the README and install Miniconda."; exit 1; }
+command -v git >/dev/null 2>&1 || { echo >&2 "git not found. Please refer to the README and install Git."; exit 1; }
 
-conda create -y -n $ENV_NAME python=3.8
-conda activate $ENV_NAME
-
-# FOMM
-git clone https://github.com/alievk/first-order-model.git fomm
-pip install -r fomm/requirements.txt
+source scripts/settings.sh
 
 # v4l2loopback
-git clone https://github.com/umlaeute/v4l2loopback
-cd v4l2loopback
-make && sudo make install
-sudo depmod -a
-#sudo insmod v4l2loopback.ko exclusive_caps=1 video_nr=1 card_label="avatarify"
-sudo modprobe v4l2loopback exclusive_caps=1 video_nr=1 card_label="avatarify"
-cd ..
+if [[ ! $@ =~ "no-vcam" ]]; then
+    rm -rf v4l2loopback 2> /dev/null
+    git clone https://github.com/alievk/v4l2loopback.git
+    echo "--- Installing v4l2loopback (sudo privelege required)"
+    cd v4l2loopback
+    make && sudo make install
+    sudo depmod -a
+    cd ..
+fi
+
+source $(conda info --base)/etc/profile.d/conda.sh
+conda create -y -n $CONDA_ENV_NAME python=3.7
+conda activate $CONDA_ENV_NAME
+
+conda install -y numpy==1.19.0 scikit-image python-blosc==1.7.0 -c conda-forge
+conda install -y pytorch==1.7.1 torchvision cudatoolkit=11.0 -c pytorch
+
+# FOMM
+rm -rf fomm 2> /dev/null
+git clone https://github.com/alievk/first-order-model.git fomm
+
+pip install -r requirements.txt
